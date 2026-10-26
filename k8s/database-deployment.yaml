@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: database-service
+  labels:
+    app: database-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: database-service
+  template:
+    metadata:
+      labels:
+        app: database-service
+    spec:
+      containers:
+        - name: database-service
+          image: <YOUR_REGISTRY>/dealership-database:latest
+          ports:
+            - containerPort: 3030
+          env:
+            - name: MONGO_URL
+              value: "mongodb://mongo-db-service:27017/dealershipsDB"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: database-service
+spec:
+  selector:
+    app: database-service
+  ports:
+    - port: 3030
+      targetPort: 3030
+  type: ClusterIP

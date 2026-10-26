@@ -1,0 +1,43 @@
+version: "3.9"
+
+services:
+  mongo_db:
+    image: mongo:6
+    container_name: dealership_mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  database_service:
+    build: ./database
+    container_name: dealership_database
+    depends_on:
+      - mongo_db
+    environment:
+      - MONGO_URL=mongodb://mongo_db:27017/dealershipsDB
+    ports:
+      - "3030:3030"
+
+  sentiment_analyzer:
+    build: ./sentiment_analyzer
+    container_name: dealership_sentiment
+    ports:
+      - "5050:5050"
+
+  django_app:
+    build: ./server
+    container_name: dealership_django
+    depends_on:
+      - database_service
+      - sentiment_analyzer
+    environment:
+      - BACKEND_URL=http://database_service:3030
+      - SENTIMENT_ANALYZER_URL=http://sentiment_analyzer:5050
+      - DJANGO_ALLOWED_HOSTS=*
+      - DJANGO_DEBUG=True
+    ports:
+      - "8000:8000"
+
+volumes:
+  mongo_data:

@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sentiment-analyzer
+  labels:
+    app: sentiment-analyzer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sentiment-analyzer
+  template:
+    metadata:
+      labels:
+        app: sentiment-analyzer
+    spec:
+      containers:
+        - name: sentiment-analyzer
+          image: <YOUR_REGISTRY>/dealership-sentiment:latest
+          ports:
+            - containerPort: 5050
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sentiment-analyzer-service
+spec:
+  selector:
+    app: sentiment-analyzer
+  ports:
+    - port: 5050
+      targetPort: 5050
+  type: ClusterIP
