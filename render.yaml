@@ -1,0 +1,47 @@
+services:
+  - type: web
+    name: dealership-database
+    runtime: docker
+    region: oregon
+    plan: free
+    dockerfilePath: ./database/Dockerfile
+    dockerContext: ./database
+    healthCheckPath: /health
+    envVars:
+      - key: MONGO_URL
+        sync: false
+      - key: PORT
+        value: "3030"
+
+  - type: web
+    name: dealership-sentiment
+    runtime: docker
+    region: oregon
+    plan: free
+    dockerfilePath: ./sentiment_analyzer/Dockerfile
+    dockerContext: ./sentiment_analyzer
+    healthCheckPath: /
+
+  - type: web
+    name: dealership-django
+    runtime: docker
+    region: oregon
+    plan: free
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: ./server
+    healthCheckPath: /health/
+    envVars:
+      - key: BACKEND_URL
+        value: http://dealership-database:3030
+      - key: SENTIMENT_ANALYZER_URL
+        value: http://dealership-sentiment:5050
+      - key: DJANGO_ALLOWED_HOSTS
+        value: .onrender.com
+      - key: DJANGO_DEBUG
+        value: "false"
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://dealership-django.onrender.com
+      - key: LOG_LEVEL
+        value: INFO
