@@ -116,25 +116,85 @@ cp -r build/static/* static/
 
 ## 3. Run everything with Docker (recommended — one command)
 
+### Prerequisites
+
+- Docker Desktop with the Linux container engine and Compose v2
+- Git
+
+The Compose stack contains four services: `mongo_db` (persistent MongoDB),
+`database_service` (Express/Mongoose API), `sentiment_analyzer` (Flask API),
+and `django_app` (Django API, authentication, admin, and static frontend).
+MongoDB is only reachable inside the Compose network; the application-facing
+ports are 8000, 3030, and 5050.
+
+### Configure environment variables
+
+Copy the example file before starting and replace the secret:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+`.env` is ignored by Git. `DJANGO_SECRET_KEY` is required when
+`DJANGO_DEBUG=false`; the Compose fallback is suitable only for local
+development. The service-to-service URLs must use Compose service names, not
+`localhost`.
+
+### Build and start
+
 ```bash
 docker compose up --build
 ```
 
-This starts Mongo, the Node database service, the Flask sentiment
-analyzer, and the Django app together, wired up via the environment
-variables in `docker-compose.yml`. Then seed the database once:
+Compose waits for MongoDB, the database API, and the sentiment API health
+checks before starting Django. In a second terminal, seed the sample MongoDB
+data once:
 
 ```bash
 docker compose exec database_service npm run seed
-docker compose exec django_app python manage.py migrate
 docker compose exec django_app python manage.py createsuperuser
 ```
 
-Visit **http://localhost:8000**. Take your `django_server.png` screenshot
-of the terminal running this command for **Task 2**.
+Migrations run automatically when the Django container starts. Visit
+**http://localhost:8000/** or **http://localhost:8000/djangoapp/**. Health
+checks are available at `/health/`, `http://localhost:3030/health`, and
+`http://localhost:5050/`.
 
-Stop everything with `docker compose down` (add `-v` to also wipe the Mongo
-volume).
+### Check status and logs
+
+```powershell
+docker compose ps
+docker compose logs -f django_app
+docker compose logs -f database_service
+```
+
+Useful API checks include:
+
+```powershell
+Invoke-WebRequest http://localhost:8000/health/
+Invoke-WebRequest http://localhost:8000/djangoapp/get_dealers
+Invoke-WebRequest http://localhost:3030/health
+Invoke-WebRequest http://localhost:5050/
+```
+
+### Stop and clean up
+
+```powershell
+docker compose down                  # removes containers, keeps Mongo data
+docker compose down --remove-orphans
+docker compose down -v                # also deletes the Mongo volume/data
+```
+
+### Troubleshooting
+
+- If a service is unhealthy, inspect `docker compose logs <service>` and
+  confirm Docker Desktop has enough memory.
+- If dealers are empty, run `docker compose exec database_service npm run seed`.
+- If Django rejects the host, add it to `DJANGO_ALLOWED_HOSTS` in `.env`.
+- If the stack was changed or cached layers are stale, use
+  `docker compose build --no-cache` and then `docker compose up -d`.
+- Do not use `localhost` for `MONGO_URL`, `BACKEND_URL`, or
+  `SENTIMENT_ANALYZER_URL` inside Compose; use the service names shown above.
 
 ---
 

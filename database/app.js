@@ -12,10 +12,13 @@ app.use(express.json());
 const PORT = process.env.PORT || 3030;
 const MONGO_URL = process.env.MONGO_URL || "mongodb://localhost:27017/dealershipsDB";
 
-mongoose
-  .connect(MONGO_URL)
-  .then(() => console.log("Connected to MongoDB at", MONGO_URL))
-  .catch((err) => console.error("MongoDB connection error:", err));
+async function start() {
+  await mongoose.connect(MONGO_URL, { serverSelectionTimeoutMS: 5000 });
+  console.log("Connected to MongoDB");
+  app.listen(PORT, () => {
+    console.log(`Dealership database service listening on port ${PORT}`);
+  });
+}
 
 // GET all dealers
 app.get("/fetchDealers", async (req, res) => {
@@ -60,6 +63,12 @@ app.get("/", (req, res) => {
   res.send("Dealership database microservice is running.");
 });
 
-app.listen(PORT, () => {
-  console.log(`Dealership database service listening on port ${PORT}`);
+app.get("/health", (req, res) => {
+  const ready = mongoose.connection.readyState === 1;
+  res.status(ready ? 200 : 503).json({ status: ready ? "ok" : "unavailable" });
+});
+
+start().catch((err) => {
+  console.error("MongoDB connection error:", err.message);
+  process.exit(1);
 });

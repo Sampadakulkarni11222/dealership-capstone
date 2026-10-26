@@ -1,43 +1,77 @@
-version: "3.9"
-
 services:
   mongo_db:
     image: mongo:6
     container_name: dealership_mongo
-    ports:
-      - "27017:27017"
     volumes:
       - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval \"db.adminCommand('ping').ok\" | grep 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
 
   database_service:
-    build: ./database
+    build:
+      context: ./database
     container_name: dealership_database
     depends_on:
-      - mongo_db
+      mongo_db:
+        condition: service_healthy
     environment:
-      - MONGO_URL=mongodb://mongo_db:27017/dealershipsDB
+      MONGO_URL: ${MONGO_URL:-mongodb://mongo_db:27017/dealershipsDB}
+      PORT: 3030
     ports:
       - "3030:3030"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3030/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
 
   sentiment_analyzer:
-    build: ./sentiment_analyzer
+    build:
+      context: ./sentiment_analyzer
     container_name: dealership_sentiment
     ports:
       - "5050:5050"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5050/', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
 
   django_app:
-    build: ./server
+    build:
+      context: ./server
     container_name: dealership_django
     depends_on:
-      - database_service
-      - sentiment_analyzer
+      database_service:
+        condition: service_healthy
+      sentiment_analyzer:
+        condition: service_healthy
     environment:
-      - BACKEND_URL=http://database_service:3030
-      - SENTIMENT_ANALYZER_URL=http://sentiment_analyzer:5050
-      - DJANGO_ALLOWED_HOSTS=*
-      - DJANGO_DEBUG=True
+      BACKEND_URL: http://database_service:3030
+      SENTIMENT_ANALYZER_URL: http://sentiment_analyzer:5050
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-false}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-development-only-secret-key}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8000}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
     ports:
       - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
 
 volumes:
   mongo_data:
