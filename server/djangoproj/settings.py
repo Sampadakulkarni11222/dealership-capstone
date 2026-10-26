@@ -71,7 +71,7 @@ TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
 STATICFILES_DIRS = [
     BASE_DIR / "frontend" / "static",
 ]
@@ -84,3 +84,4 @@ BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:3030")
 SENTIMENT_ANALYZER_URL = os.environ.get(
     "SENTIMENT_ANALYZER_URL", "http://localhost:5050"
 )
+
