@@ -10,8 +10,6 @@ services:
     envVars:
       - key: MONGO_URL
         sync: false
-      - key: PORT
-        value: "3030"
 
   - type: web
     name: dealership-sentiment
